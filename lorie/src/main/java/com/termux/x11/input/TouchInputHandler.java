@@ -330,18 +330,23 @@ public class TouchInputHandler {
         if (!view.isFocused() && event.getAction() == MotionEvent.ACTION_DOWN)
             view.requestFocus();
 
-        if (event.getAction() == MotionEvent.ACTION_UP)
-            setCapturingEnabled(true);
-
         if (event.getToolType(event.getActionIndex()) == MotionEvent.TOOL_TYPE_STYLUS
                 || event.getToolType(event.getActionIndex()) == MotionEvent.TOOL_TYPE_ERASER)
             return mStylusListener.onTouch(event);
 
         if (!isDexEvent(event) && (event.getToolType(event.getActionIndex()) == MotionEvent.TOOL_TYPE_MOUSE
                 || (event.getSource() & InputDevice.SOURCE_MOUSE) == InputDevice.SOURCE_MOUSE)
-                || (event.getSource() & InputDevice.SOURCE_MOUSE_RELATIVE) == InputDevice.SOURCE_MOUSE_RELATIVE)
+                || (event.getSource() & InputDevice.SOURCE_MOUSE_RELATIVE) == InputDevice.SOURCE_MOUSE_RELATIVE) {
+            // Touch and touchpads must never trigger capture. A real mouse uses
+            // Android pointer capture for relative game input, but retains the
+            // existing absolute path while capture is disabled.
+            if (mInjector.pointerCapture && !hasPointerCapture(view)
+                    && event.getToolType(event.getActionIndex()) == MotionEvent.TOOL_TYPE_MOUSE) {
+                if (!view.isFocused()) view.requestFocus();
+                view.requestPointerCapture();
+            }
             return mHMListener.onTouch(view, event);
-
+        }
         if (event.getToolType(event.getActionIndex()) == MotionEvent.TOOL_TYPE_FINGER) {
             // Dex touchpad (in non-captured mode) sends events as finger, but it should be considered as a mouse.
             if (isDexEvent(event) && mDexListener.onTouch(view, event))
@@ -1023,12 +1028,25 @@ public class TouchInputHandler {
                 mRenderData.mapScreenPoint(e.getX(), e.getY(), mappedPoint);
                 if (mRenderData.setCursorPosition(mappedPoint[0], mappedPoint[1]))
                     mInjector.sendCursorMove(mappedPoint[0], mappedPoint[1], false);
-            } else if (e.getAction() == MotionEvent.ACTION_MOVE && e.getPointerCount() == 1) {
+            } else if ((e.getAction() == MotionEvent.ACTION_MOVE
+                    || e.getAction() == MotionEvent.ACTION_HOVER_MOVE)
+                    && e.getPointerCount() == 1) {
                 boolean axis_relative_x = e.getDevice().getMotionRange(MotionEvent.AXIS_RELATIVE_X) != null;
                 boolean mouse_relative = (e.getSource() & InputDevice.SOURCE_MOUSE_RELATIVE) == InputDevice.SOURCE_MOUSE_RELATIVE;
                 if (axis_relative_x || mouse_relative) {
-                    float x = axis_relative_x ? e.getAxisValue(MotionEvent.AXIS_RELATIVE_X) : e.getX();
-                    float y = axis_relative_x ? e.getAxisValue(MotionEvent.AXIS_RELATIVE_Y) : e.getY();
+                    float x = 0;
+                    float y = 0;
+                    if (axis_relative_x) {
+                        for (int i = 0; i < e.getHistorySize(); i++) {
+                            x += e.getHistoricalAxisValue(MotionEvent.AXIS_RELATIVE_X, i);
+                            y += e.getHistoricalAxisValue(MotionEvent.AXIS_RELATIVE_Y, i);
+                        }
+                        x += e.getAxisValue(MotionEvent.AXIS_RELATIVE_X);
+                        y += e.getAxisValue(MotionEvent.AXIS_RELATIVE_Y);
+                    } else {
+                        x = e.getX();
+                        y = e.getY();
+                    }
                     float temp;
 
                     switch (capturedPointerTransformation) {
@@ -1281,3 +1299,4 @@ public class TouchInputHandler {
         }
     }
 }
+        }

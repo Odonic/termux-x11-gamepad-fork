@@ -231,7 +231,7 @@ public class MainActivity extends AppCompatActivity {
             return mInputHandler.handleTouchEvent(lorieParent, lorieView, e);
         });
         lorieParent.setOnHoverListener((v, e) -> mInputHandler.handleTouchEvent(lorieParent, lorieView, e));
-        lorieParent.setOnGenericMotionListener((v, e) -> mInputHandler.handleTouchEvent(lorieParent, lorieView, e));
+        lorieParent.setOnGenericMotionListener((v, e) -> mGamepadBridge.handleMotion(e) || mInputHandler.handleTouchEvent(lorieParent, lorieView, e));
         if (SDK_INT >= VERSION_CODES.O) {
             lorieView.setOnCapturedPointerListener((v, e) -> mInputHandler.handleTouchEvent(lorieView, lorieView, e));
             lorieParent.setOnCapturedPointerListener((v, e) -> mInputHandler.handleTouchEvent(lorieView, lorieView, e));
@@ -1180,3 +1180,11 @@ public class MainActivity extends AppCompatActivity {
         getLorieView().requestFocus();
     }
 }
+import com.termux.x11.input.GamepadBridge;
+    private GamepadBridge mGamepadBridge;
+        mGamepadBridge = new GamepadBridge(this);
+        mGamepadBridge.start();
+            if (mGamepadBridge.handleKey(e))
+                return true;
+        if (mGamepadBridge != null)
+            mGamepadBridge.close();
