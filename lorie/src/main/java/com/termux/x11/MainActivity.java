@@ -81,6 +81,7 @@ import com.termux.x11.utils.ImeHeightProvider;
 import com.termux.x11.utils.KeyInterceptor;
 import com.termux.x11.utils.TermuxX11ExtraKeys;
 import com.termux.x11.utils.X11ToolbarViewPager;
+import com.termux.x11.input.GamepadBridge;
 
 import java.util.Map;
 import java.util.Objects;
@@ -183,6 +184,7 @@ public class MainActivity extends AppCompatActivity {
         }
         return null;
     }
+    private GamepadBridge mGamepadBridge;
 
     @Override
     @SuppressLint({"AppCompatMethod", "ObsoleteSdkInt", "ClickableViewAccessibility", "WrongConstant", "UnspecifiedRegisterReceiverFlag"})
@@ -212,7 +214,11 @@ public class MainActivity extends AppCompatActivity {
         View lorieParent = (View) lorieView.getParent();
 
         mInputHandler = new TouchInputHandler(this, new InputEventSender(this, lorieView));
+        mGamepadBridge = new GamepadBridge(this);
+        mGamepadBridge.start();
         mLorieKeyListener = (v, k, e) -> {
+            if (mGamepadBridge.handleKey(e))
+                return true;
             InputDevice dev = e.getDevice();
             boolean result = mInputHandler.sendKeyEvent(e);
 
@@ -293,6 +299,8 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         handler.removeCallbacks(screenIdleTimeoutCheck);
+        if (mGamepadBridge != null)
+            mGamepadBridge.close();
         if (mInputHandler != null)
             mInputHandler.onDestroy();
         if (instance == this)
@@ -1180,11 +1188,3 @@ public class MainActivity extends AppCompatActivity {
         getLorieView().requestFocus();
     }
 }
-import com.termux.x11.input.GamepadBridge;
-    private GamepadBridge mGamepadBridge;
-        mGamepadBridge = new GamepadBridge(this);
-        mGamepadBridge.start();
-            if (mGamepadBridge.handleKey(e))
-                return true;
-        if (mGamepadBridge != null)
-            mGamepadBridge.close();
